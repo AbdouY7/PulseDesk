@@ -7,3 +7,98 @@ datasource db {
   provider = "postgresql"
 }
 
+
+enum role {
+  OWNER
+  ADMIN
+  AGENT 
+  MEMBER
+}
+enum invitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+model User{
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  passwordHash String?
+  avatarUrl String?
+  emailVerifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions  Session[]
+  workspaceMembers workspaceMember[]
+  invitations invitation[]
+
+  @@map("users")
+}
+model Workspace {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  slug       String   @unique
+  logoUrl    String?
+  timezone    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     workspaceMember[]
+  invitations  invitation[]
+
+  @@map("workspaces")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model workspaceMember {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  userId      String   @db.Uuid
+  workspaceRole     role
+  joinedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([workspaceId, userId])
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("workspace_members")
+}
+
+model invitation {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  invitedById   String   @db.Uuid
+  email       String
+  workspaceRole     role
+  tokenHash   String   @unique
+  status      invitationStatus @default(PENDING)
+  
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [invitedById], references: [id])
+
+  @@map("invitations")
+}
+
